@@ -1,0 +1,258 @@
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: cloud-console
+  name: cloud-console
+spec:
+  chart:
+    name: cloud-console
+    repository: http://master-1:8879
+    version: 0.1.0
+  releaseName: cloud-console
+  targetNamespace: fed
+  values:
+    config:
+      extra:
+        config: ""
+        sql: ""
+      filter:
+        rule: "yes"
+      keycloak:
+        cacert: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURSekNDQWkrZ0F3SUJBZ0lKQUsveGVrRzhlNWdSTUEwR0NTcUdTSWIzRFFFQkN3VUFNRG94Q3pBSkJnTlYKQkFvTUFrbFVNU3N3S1FZRFZRUUREQ0pyWlhsamJHOWhheTV6YTJJdGMzVjVMV0ZrYlRBeExtSjBkbkJoWVhNdQpZMjl0TUI0WERUSXdNRGN3T1RFd01EazBNVm9YRFRNd01EY3dOekV3TURrME1Wb3dPakVMTUFrR0ExVUVDZ3dDClNWUXhLekFwQmdOVkJBTU1JbXRsZVdOc2IyRnJMbk5yWWkxemRYa3RZV1J0TURFdVluUjJjR0ZoY3k1amIyMHcKZ2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQ3NPVlg5SFd2bldjNjFiVkpwQlJMdgoxWVllLzVBS3lHZDRRK2NCS2ZpN3lrNDBuNDI2YUFybU5WMklEQklMdXM5UlB4ME40RDVNTVVHVnZQRCtkZ0ZqCmk4Tzk1bEtRanl2Um95eUNBdVUxcXVZbEpmQ2FDeEFlR0pjUHFSRHhxMFdqTFBWRTByMWhMcllFQ3RvRzk3bisKZ0VaSjEvQ2pnTEM4cjlsUzdjRjdyQzJiMy9ET1E1WVhxcSsxaytyNUN4eFl4Vm5SU2Zic0Evd2xkbElWNXlLVQpGR0FzYVc0NFI1VkxvU1hJLzJlc0VJbFc4c1I1MFJxY0U2RzVZbUNTU1UzRWE4Yjd2OFVZZE5sbldDSTBiKzUvCmFDcDhQeVJRSFdwaGtqbk1VSVllcXhmZ0c5Y01DSWdOSnZCZnFIUlRNTy9EZjdadkhnV25MSjNzM0FQOEtnTC8KQWdNQkFBR2pVREJPTUIwR0ExVWREZ1FXQkJTMFc5dTRFQmxFSzdlbGwwM1pZenA0djhFME56QWZCZ05WSFNNRQpHREFXZ0JTMFc5dTRFQmxFSzdlbGwwM1pZenA0djhFME56QU1CZ05WSFJNRUJUQURBUUgvTUEwR0NTcUdTSWIzCkRRRUJDd1VBQTRJQkFRQkJLU05ObDNjcG1LVDA4ZkdEcDZNbWQycTVkTkk2cmxyY0xUcm1aYnA0V1Yvd3BlcTMKakRldG9Ed2ZvUTlISTRXU29FMGwyM1FwdWdqSTFhSzJPZjdYY2FIbjlWVE5LVklLNFAxVVB3d2UwSG9nMWh0QQpsNnUwSkYyMU9Cank1TGNUVFFSMG44dFlObE9MdXdEMGpUVXVaanBYNGZPNG1JTmZvWXFrUE9yOEw4T3lyMDZXCkxhQXBUVXdvUXhkcnpmdmwxbU5HTWxKdW1SLzRDUWNSTjVVd1RQMHRTdjZiUTNwZ3FQSlh6Y2ZHL2gzNGR2Y2wKSWNYTVFFOWc4VFJTN0VlaXRZVEFNNkQxRXQyK2VSUEV5T0N0MmhWbWkrbjJpNEZENXV1ODVJb1RybUY3eGFodQppNG9LTjN5M3JQbUE3elhNZjFYRDBSZmhSZkVaeXk3d3BkOEcKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+        clientId: cloud-console
+        enabled: "yes"
+        hasRealmRole1: lma_system
+        hasRealmRole2: lma_app
+        hasRealmRole3: lma_viewer
+        realm: nextpaas
+        url: https://keycloak.skbroadband.com/auth
+      lenz:
+        url: http://dashboard.skbroadband.com
+      loggingfilter:
+        url: /apis/logging.banzaicloud.io/v1beta1/namespaces/fed/flows
+      prometheus:
+        ruleUrl: /apis/monitoring.coreos.com/v1/namespaces/fed/prometheusrules
+      service:
+        proxyportlist: 32001-32008
+        proxyurl:
+          format: http://ccproxy-%REQUEST_PORT%.skbroadband.com
+    ingress:
+      enabled: false
+    nodeSelector:
+      taco-lma: enabled
+    service:
+      nodePort: 32000
+      port: 32000
+      proxy_from: 32001
+      proxy_to: 32008
+      targetPort: 32000
+      type: ClusterIP
+    volume:
+      storageClassName: ceph
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: custom-network
+  name: custom-network
+spec:
+  chart:
+    name: custom-network
+    repository: http://192.168.5.61:8879/charts
+    version: 1.0.8
+  releaseName: custom-network
+  targetNamespace: lma
+  values:
+    f5_ingress:
+      enabled: false
+    service:
+      enabled: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: keycloak
+  name: keycloak
+spec:
+  chart:
+    name: keycloak
+    repository: http://master-1:8879
+    version: 8.2.2
+  releaseName: keycloak
+  targetNamespace: fed
+  values:
+    global:
+      storageClass: ceph
+    keycloak:
+      ingress:
+        enabled: false
+        hosts:
+        - keycloak.example.com
+        tls:
+        - hosts:
+          - keycloak.example.com
+          secretName: tls-keycloak
+      password: password
+      persistence:
+        dbVendor: postgres
+        deployPostgres: true
+    postgresql-ha:
+      clusterDomain: cluster.local
+      metrics:
+        enabled: true
+      networkPolicy:
+        allowExternal: true
+        enabled: false
+      persistence:
+        accessModes:
+        - ReadWriteOnce
+        enabled: true
+        size: 20Gi
+      postgresql:
+        password: password
+        repmgrPassword: password
+      postgresqlImage:
+        debug: true
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: site-mirror-registry
+  name: site-mirror-registry
+spec:
+  chart:
+    name: site-mirror-registry
+    repository: http://192.168.5.61:8879/charts
+    version: 0.0.2
+  releaseName: site-mirror-registry
+  targetNamespace: registry
+  values:
+    namespace: registry
+    tacoRegistry:
+      name: private-registry
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 5000
+          targetPort: 5000
+        type: ClusterIP
+      volume:
+        data:
+          size: 500Gi
+        storageClassName: rbd
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: taco-registry
+  name: taco-registry
+spec:
+  chart:
+    name: taco-registry
+    repository: http://master-1:8879
+    version: 1.0.3
+  releaseName: taco-registry
+  targetNamespace: registry
+  values:
+    storageClassName: ceph
+    tacoClair:
+      deployment:
+        data:
+          db: clair
+          password: clair
+          user: clair
+        hostAliases: TO_BE_FIXED
+        replicas: 1
+      name: taco-clair
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 6060
+          targetPort: 6060
+        - name: health
+          nodePort: null
+          port: 6061
+          targetPort: 6061
+        type: ClusterIP
+    tacoDb:
+      deployment:
+        data:
+          db: registry
+          password: registry1234
+          user: registry
+        image: postgres:latest
+      name: taco-db
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 5432
+          targetPort: 5432
+        type: ClusterIP
+      volume:
+        data:
+          size: 10Gi
+        enabled: true
+        storageClassName: ceph
+    tacoRegistry:
+      deployment:
+        auth:
+          issuer: taco-registry
+          keyPairAlias: servercert
+          keyPairPassword: taco-registry
+          keyPassword: taco-registry
+          service: taco-registry
+        image: registry:2
+      name: taco-private-registry
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 5000
+          targetPort: 5000
+        type: ClusterIP
+      volume:
+        data:
+          size: 10Gi
+        enabled: true
+    tacoRegistryApp:
+      deployment:
+        env: TO_BE_FIXED
+        hostAliases: TO_BE_FIXED
+        replicas: 1
+      name: taco-registry-app
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 8080
+          targetPort: 8080
+        type: ClusterIP
+    tacoRegistryBuilder:
+      deployment:
+        hostAliases: TO_BE_FIXED
+        replicas: 1
+      mirrors: TO_BE_FIXED
+      name: taco-registry-builder
+      service:
+        ports:
+        - name: http
+          nodePort: null
+          port: 4000
+          targetPort: 4000
+        type: ClusterIP
+      volume:
+        data:
+          path: /var/run/docker.sock
+          size: 100Mi
+  wait: true

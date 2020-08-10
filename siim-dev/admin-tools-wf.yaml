@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: admin-tools-
+spec:
+  entrypoint: deploy
+  serviceAccountName: argo-deploy-sa
+  arguments:
+    parameters:
+    - name: app_name
+      value: "admin-tools"
+  templates:
+  - name: deploy
+    dag:
+      tasks:
+      - name: admin-tools
+        templateRef:
+          name: deploy-helmrelease
+          template: ChartGroup
+        arguments:
+          parameters: 
+          - name: chart_list
+            value: |
+              [
+                "cloud-console",
+                "keycloak",
+                "taco-registry"
+              ]
+        dependencies: []
+      - name: custom-network
+        templateRef:
+          name: deploy-helmrelease
+          template: ChartGroup
+        arguments:
+          parameters: 
+          - name: chart_list
+            value: |
+              [
+                "custom-network",
+              ]
+        dependencies: [admin-tools]

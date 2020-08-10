@@ -1,0 +1,1053 @@
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: addons
+  name: addons
+spec:
+  chart:
+    name: taco-addons-lma
+    repository: http://192.168.105.161:8879/charts
+    version: 1.0.2
+  releaseName: addons
+  targetNamespace: lma
+  values:
+    grafanaDashboard:
+      enabled: false
+    metricbeat:
+      enabled: false
+    prometheusRules:
+      aggregation:
+        enabled: true
+      alert:
+        enabled: false
+    serviceMonitor:
+      additionalScrapeConfigs:
+      - interval: 10s
+        name: bigip-controller
+        namespace: kube-system
+        path: /metrics
+        port: 8080
+        selector:
+          app: k8s-bigip1-ctlr
+      calico:
+        enabled: true
+        interval: 10s
+      ceph:
+        enabled: false
+        interval: 10s
+      grafana:
+        enabled: false
+      kubeStateMetrics:
+        interval: 10s
+      nodeExporter:
+        interval: 10s
+      processExporter:
+        enabled: true
+        interval: 10s
+        selector:
+          matchLabels:
+            application: process_exporter
+            component: metrics
+            release_group: prometheus-process-exporter
+    tacoWatcher:
+      rbac:
+        create: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: elasticsearch-kibana
+  name: elasticsearch-kibana
+spec:
+  chart:
+    name: elasticsearch-operator
+    repository: http://192.168.105.161:8879/charts
+    version: 1.0.0
+  releaseName: elasticsearch-kibana
+  targetNamespace: lma
+  values:
+    customResource:
+      elasticsearch:
+        config:
+          node.master: true
+        count: 3
+        enabled: true
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/elasticsearch/elasticsearch
+          tag: 7.5.1
+        javaOpts: -Xms10g -Xmx10g
+        limitCpu: 2
+        limitMem: 20Gi
+        nodeSelector:
+          taco-lma: enabled
+        version: 7.5.1
+        volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 200Gi
+            storageClassName: netapp-nfs2
+      kibana:
+        enabled: true
+        http:
+          service:
+            spec:
+              ports:
+              - name: http
+                nodePort: 30001
+                port: 5601
+                targetPort: 5601
+              type: NodePort
+          tls:
+            selfSignedCertificate:
+              disabled: true
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/kibana/kibana
+          tag: 7.5.1
+        nodeSelector:
+          taco-lma: enabled
+        version: 7.5.1
+    elasticsearchOperator:
+      enabled: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: elasticsearch-operator
+  name: elasticsearch-operator
+spec:
+  chart:
+    name: elasticsearch-operator
+    repository: http://192.168.105.161:8879/charts
+    version: 1.0.0
+  releaseName: elasticsearch-operator
+  targetNamespace: elastic-system
+  values:
+    customResource:
+      elasticsearch:
+        enabled: false
+      kibana:
+        enabled: false
+    elasticsearchOperator:
+      createCustomResource: true
+      createNamespace: false
+      enabled: true
+      hyperkubeImage:
+        repository: registry-rel.cicd.stg.taco:5000/hyperkube
+        tag: v1.17.6
+      image:
+        repository: registry-rel.cicd.stg.taco:5000/eck/eck-operator
+        tag: 1.1.1
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: fed-addons
+  name: fed-addons
+spec:
+  chart:
+    name: taco-addons-lma
+    repository: http://192.168.105.161:8879/charts
+    version: 1.0.2
+  releaseName: fed-addons
+  targetNamespace: fed
+  values:
+    grafanaDashboard:
+      enabled: true
+      sidecar:
+        datasources:
+          prometheusAddress: fed-master-prometheus:9090
+    kibanaInit:
+      enabled: true
+      image:
+        repository: registry-rel.cicd.stg.taco:5000/kibana-init
+        tag: v4
+      url: http://taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
+    metricbeat:
+      addtionalModules: []
+      elasticsearch:
+        host: https://taco-elasticsearch-es-http.lma.svc.siim-dev:9200
+        password: tacoword
+        username: elastic
+      enabled: true
+      image:
+        repository: registry-rel.cicd.stg.taco:5000/metricbeat
+        tag: taco-1.0.0
+      kibana:
+        host: taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
+      prometheus:
+        hosts:
+        - fed-master-prometheus.fed.svc.siim-dev:9090
+    prometheusRules:
+      aggregation:
+        enabled: false
+      alert:
+        enabled: true
+    serviceMonitor:
+      calico:
+        enabled: false
+      ceph:
+        enabled: false
+      federations:
+      - interval: 10s
+        name: admin-federate
+        namespace: lma
+        port: 9090
+        selector:
+          app: prometheus
+          prometheus: lma-prometheus
+      - addresses:
+        - 192.168.105.161
+        interval: 10s
+        name: suy-federate
+        port: 30008
+      - addresses:
+        - 192.168.5.161
+        - 192.168.5.162
+        - 192.168.5.163
+        interval: 10s
+        name: ssu-federate
+        port: 30008
+      grafana:
+        enabled: true
+        interval: 10s
+      kubeStateMetrics:
+        enabled: false
+      nodeExporter:
+        enabled: false
+      processExporter:
+        enabled: false
+    tacoWatcher:
+      host: taco-watcher.fed.svc.siim-dev
+      joinCluster:
+        body:
+          grafanaUrl: http://grafana.fed.svc.siim-dev
+          isMain: true
+          k8sUrl: https://kubernetes.default.svc.siim-dev
+          kibanaUrl: http://taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
+          menu:
+            enabled: true
+        enabled: true
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/curl
+          tag: latest
+      port: 32000
+      rbac:
+        create: true
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: fluentbit
+  name: fluentbit
+spec:
+  chart:
+    name: fluentbit-operator
+    repository: http://192.168.105.161:8879/charts
+    skipDepUpdate: true
+    version: 1.0.0
+  releaseName: fluentbit
+  targetNamespace: lma
+  values:
+    fluentbit:
+      alerts:
+        makeAlertRule: true
+      clusterName: siim-dev
+      daemonset:
+        spec:
+          pod:
+            tolerations:
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+            - key: node-role.kubernetes.io/node
+              operator: Exists
+      enabled: true
+      esTemplate:
+        enabled: true
+        password: tacoword
+        url: https://taco-elasticsearch-es-http.lma.svc.siim-dev:9200
+        username: elastic
+      nodeSelector:
+        taco-lma: enabled
+      outputs:
+        es:
+          enabled: true
+          host: taco-elasticsearch-es-http.lma.svc.siim-dev
+          password: dGFjb3dvcmQ=
+          port: 9200
+          username: ZWxhc3RpYw==
+        http:
+          enabled: true
+        kafka:
+          broker: 10.12.250.203:9092, 10.12.250.204:9092, 10.12.250.205:9092
+          enabled: false
+          topic: taco
+      targetLogs:
+      - bufferChunkSize: 2M
+        bufferMaxSize: 5M
+        indexPrefix: container
+        memBufLimit: 20MB
+        name: dockerlog
+        parser: docker
+        path: /var/log/containers/*.log
+        tag: kube.*
+        type: fluent
+      - indexPrefix: syslog
+        name: syslog
+        parser: syslog-rfc5424
+        path: /var/log/messages
+        tag: kubenode.*
+        type: syslog
+      - indexPrefix: etcd
+        name: etcd
+        parser: docker
+        path: /var/log/etcd.log
+        tag: etcdnode.*
+        type: etcd
+    fluentbitOperator:
+      cleanupCustomResource: false
+      createCustomResource: false
+      enabled: false
+    global:
+      base_cluster_url: siim-dev
+      nodeSelector:
+        taco-lma: enabled
+    image:
+      exporter:
+        repository: registry-rel.cicd.stg.taco:5000/logalert-exporter
+        tag: v0.1.1
+      fluentbit:
+        repository: registry-rel.cicd.stg.taco:5000/fluent-bit-for-operator
+        tag: v1.4.6
+      hyperkube:
+        repository: registry-rel.cicd.stg.taco:5000/hyperkube
+        tag: v1.17.6
+      init:
+        repository: registry-rel.cicd.stg.taco:5000/library/docker
+        tag: 19.03
+      operator:
+        repository: registry-rel.cicd.stg.taco:5000/fluentbit-operator
+        tag: v0.1.1
+    logExporter:
+      enabled: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: fluentbit-operator
+  name: fluentbit-operator
+spec:
+  chart:
+    name: fluentbit-operator
+    repository: http://192.168.105.161:8879/charts
+    skipDepUpdate: true
+    version: 1.0.0
+  releaseName: fluentbit-operator
+  targetNamespace: lma
+  values:
+    fluentbit:
+      enabled: false
+    fluentbitOperator:
+      cleanupCustomResource: true
+      createCustomResource: true
+      enabled: true
+      nodeSelector:
+        taco-lma: enabled
+    global:
+      base_cluster_url: siim-dev
+    image:
+      exporter:
+        repository: registry-rel.cicd.stg.taco:5000/logalert-exporter
+        tag: v0.1.1
+      fluentbit:
+        repository: registry-rel.cicd.stg.taco:5000/fluent-bit-for-operator
+        tag: v1.4.6
+      hyperkube:
+        repository: registry-rel.cicd.stg.taco:5000/hyperkube
+        tag: v1.17.6
+      init:
+        repository: registry-rel.cicd.stg.taco:5000/library/docker
+        tag: 19.03
+      operator:
+        repository: registry-rel.cicd.stg.taco:5000/fluentbit-operator
+        tag: v0.1.1
+    logExporter:
+      enabled: true
+      nodeSelector:
+        taco-lma: enabled
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: grafana
+  name: grafana
+spec:
+  chart:
+    name: grafana
+    repository: http://192.168.105.161:8879/charts
+    version: 5.0.7
+  releaseName: grafana
+  targetNamespace: fed
+  values:
+    adminPassword: password
+    downloadDashboardsImage:
+      repository: registry-rel.cicd.stg.taco:5000/curl
+      tag: 7.68.0
+    grafana.ini:
+      plugins:
+        devopsprodigy-kubegraf-app: true
+        grafana-piechart-panel: true
+        vonage-status-panel: true
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/grafana
+      tag: 6.6.2
+    initChownData:
+      image:
+        repository: registry-rel.cicd.stg.taco:5000/library/busybox
+        tag: 1.31.1
+    persistence:
+      enabled: true
+      size: 10G
+      storageClassName: netapp-nfs2
+    plugins:
+    - vonage-status-panel
+    - grafana-piechart-panel
+    - devopsprodigy-kubegraf-app
+    service:
+      nodePort: 30009
+      type: NodePort
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+      datasources:
+        enabled: true
+        label: grafana_datasource
+      image: registry-rel.cicd.stg.taco:5000/k8s-sidecar:0.1.99
+    testFramework:
+      image: registry-rel.cicd.stg.taco:5000/bats
+      tag: v1.1.0
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: kube-state-metrics
+  name: kube-state-metrics
+spec:
+  chart:
+    name: kube-state-metrics
+    repository: http://192.168.105.161:8879/charts
+    version: 2.8.2
+  releaseName: kube-state-metrics
+  targetNamespace: lma
+  values:
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/coreos/kube-state-metrics
+      tag: v1.9.5
+    nodeSelector:
+      taco-lma: enabled
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: kubernetes-event-exporter
+  name: kubernetes-event-exporter
+spec:
+  chart:
+    name: kubernetes-event-exporter
+    repository: http://192.168.105.161:8879/charts
+    version: 1.0.0
+  releaseName: kubernetes-event-exporter
+  targetNamespace: lma
+  values:
+    conf:
+      additionalReceivers: {}
+      additionalRoutes: {}
+      default:
+        additionalDefaultReceivers: []
+        hosts:
+        - https://taco-elasticsearch-es-http.lma.svc.siim-dev:9200
+        index: kube-events
+        password: tacoword
+        user: elastic
+      logFormat: json
+      logLevel: error
+    image:
+      PullPolicy: IfNotPresent
+      repository: registry-rel.cicd.stg.taco:5000/siim/kubernetes-event-exporter
+      tag: 0.1.0
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus
+  name: prometheus
+spec:
+  chart:
+    name: prometheus-operator
+    repository: http://192.168.105.161:8879/charts
+    version: 8.12.3
+  releaseName: prometheus
+  targetNamespace: lma
+  values:
+    alertmanager:
+      enabled: false
+    coreDns:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    defaultRules:
+      create: false
+    fullnameOverride: lma
+    grafana:
+      enabled: false
+    kubeApiServer:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    kubeControllerManager:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    kubeDns:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    kubeEtcd:
+      enabled: true
+      endpoints:
+      - 192.168.105.161
+      - 192.168.105.162
+      - 192.168.105.163
+      serviceMonitor:
+        caFile: /etc/prometheus/secrets/etcd-client-cert/etcd-ca
+        certFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client
+        insecureSkipVerify: false
+        interval: 10s
+        keyFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client-key
+        scheme: https
+        serverName: localhost
+    kubeProxy:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    kubeScheduler:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    kubeStateMetrics:
+      enabled: false
+    kubelet:
+      enabled: true
+      serviceMonitor:
+        interval: 10s
+    nodeExporter:
+      enabled: false
+    prometheus:
+      prometheusSpec:
+        additionalScrapeConfigs:
+        - job_name: kubernetes-service-endpoints
+          kubernetes_sd_configs:
+          - api_server: null
+            namespaces:
+              names: []
+            role: endpoints
+          metrics_path: /metrics
+          relabel_configs:
+          - action: drop
+            regex: (.*node-exporter|openstack-metrics|prom-metrics|.*kube-state-metrics)
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_name
+          - action: keep
+            regex: "true"
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scrape
+          - action: replace
+            regex: (https?)
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scheme
+            target_label: __scheme__
+          - action: replace
+            regex: (.+)
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_path
+            target_label: __metrics_path__
+          - action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            separator: ;
+            source_labels:
+            - __address__
+            - __meta_kubernetes_service_annotation_prometheus_io_port
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+            replacement: $1
+            separator: ;
+          - action: replace
+            regex: (.*)
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            regex: (.*)
+            replacement: $1
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_name
+            target_label: kubernetes_name
+          - action: replace
+            regex: (.*)
+            replacement: ${1}
+            separator: ;
+            source_labels:
+            - __meta_kubernetes_service_name
+            target_label: job
+          scheme: http
+          scrape_interval: 1m
+          scrape_timeout: 10s
+        externalLabels:
+          taco_cluster: skb-suy-adm01
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/prometheus/prometheus
+          tag: v2.15.2
+        nodeSelector:
+          taco-lma: enabled
+        replicas: 1
+        retention: 30d
+        ruleNamespaceSelector:
+          matchLabels:
+            name: lma
+        ruleSelectorNilUsesHelmValues: false
+        secrets:
+        - etcd-client-cert
+        serviceMonitorNamespaceSelector:
+          matchLabels:
+            name: lma
+        serviceMonitorSelectorNilUsesHelmValues: false
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 200Gi
+              storageClassName: netapp-nfs2
+      service:
+        nodePort: 30008
+        type: NodePort
+    prometheusOperator:
+      admissionWebhooks:
+        enabled: false
+      cleanupCustomResource: false
+      cleanupCustomResourceBeforeInstall: false
+      createCustomResource: false
+      enabled: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-adapter
+  name: prometheus-adapter
+spec:
+  chart:
+    name: prometheus-adapter
+    repository: http://192.168.105.161:8879/charts
+    version: 2.1.3
+  releaseName: prometheus-adapter
+  targetNamespace: lma
+  values:
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/k8s-prometheus-adapter-amd64
+      tag: v0.6.0
+    nodeSelector:
+      taco-lma: enabled
+    prometheus:
+      port: 9090
+      url: http://lma-prometheus
+    rules:
+      default: true
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-fed-master
+  name: prometheus-fed-master
+spec:
+  chart:
+    name: prometheus-operator
+    repository: http://192.168.105.161:8879/charts
+    version: 8.12.3
+  releaseName: prometheus-fed-master
+  targetNamespace: fed
+  values:
+    alertmanager:
+      alertmanagerSpec:
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/prometheus/alertmanager
+          tag: v0.20.0
+        nodeSelector:
+          taco-lma: enabled
+        retention: 120h
+      config:
+        global:
+          hipchat_api_url: null
+          hipchat_auth_token: null
+          slack_api_url: https://hooks.slack.com/services/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
+          smtp_auth_password: null
+          smtp_auth_username: null
+          smtp_from: null
+          smtp_smarthost: null
+        receivers:
+        - name: default-alert
+          slack_configs:
+          - channel: '#sample-critical'
+            send_resolved: true
+            text: |-
+              {{ if or (and (eq (len .Alerts.Firing) 1) (eq (len .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved) 1)) }} {{ range .Alerts.Firing }}{{ .Annotations.message }}{{ end }}{{ range .Alerts.Resolved }}{{ .Annotations.message  }}{{ end }}
+              {{ else }}
+              {{ if gt (len .Alerts.Firing) 0 }}
+              *Alerts Firing:*
+                {{ range .Alerts.Firing }}- {{ .Labels.alertname  }}: {{ .Annotations.message }}
+              {{ end }}{{ end }}
+              {{ if gt (len .Alerts.Resolved) 0 }}
+              *Alerts Resolved:*
+                {{ range .Alerts.Resolved }}- {{ .Labels.alertname }}: {{ .Annotations.message }}
+              {{ end }}{{ end }}
+              {{ end }}
+            title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing
+              | len }}{{ end }}] {{ if or (and (eq (len .  Alerts.Firing) 1) (eq (len
+              .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved)
+              1)) }} {{ range .    Alerts.Firing }}{{ .Labels.alertname }}{{ end }}{{
+              range .Alerts.Resolved }}{{ .Labels.alertname }}{{ end }}{{ end }}'
+            username: Prometheus
+        - name: slack-alert
+          slack_configs:
+          - channel: '#sample-noti'
+            send_resolved: true
+            text: |-
+              {{ if or (and (eq (len .Alerts.Firing) 1) (eq (len .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved) 1)) }} {{ range .Alerts.Firing }}{{ .Annotations.message }}{{ end }}{{ range .Alerts.Resolved }}{{ .Annotations.message  }}{{ end }}
+              {{ else }}
+              {{ if gt (len .Alerts.Firing) 0 }}
+              *Alerts Firing:*
+                {{ range .Alerts.Firing }}- {{ .Labels.alertname  }}: {{ .Annotations.message }}
+              {{ end }}{{ end }}
+              {{ if gt (len .Alerts.Resolved) 0 }}
+              *Alerts Resolved:*
+                {{ range .Alerts.Resolved }}- {{ .Labels.alertname }}: {{ .Annotations.message }}
+              {{ end }}{{ end }}
+              {{ end }}
+            title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing
+              | len }}{{ end }}] {{ if or (and (eq (len .  Alerts.Firing) 1) (eq (len
+              .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved)
+              1)) }} {{ range .    Alerts.Firing }}{{ .Labels.alertname }}{{ end }}{{
+              range .Alerts.Resolved }}{{ .Labels.alertname }}{{ end }}{{ end }}'
+            username: Prometheus
+        - name: telegram-alert
+          webhook_configs:
+          - send_resolved: true
+            url: http://prometheus-bot:9087/alert/-GROUP_ID
+        route:
+          group_by:
+          - alertname
+          group_wait: 10s
+          receiver: default-alert
+          repeat_interval: 1h
+          routes:
+          - group_by:
+            - alertname
+            match:
+              severity: page
+            receiver: slack-alert
+      enabled: true
+    coreDns:
+      enabled: false
+    defaultRules:
+      create: false
+    fullnameOverride: fed-master
+    grafana:
+      enabled: false
+    kubeApiServer:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeDns:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeStateMetrics:
+      enabled: true
+    kubelet:
+      enabled: false
+    nodeExporter:
+      enabled: false
+    prometheus:
+      prometheusSpec:
+        externalLabels:
+          taco_cluster: federation-master
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/prometheus/prometheus
+          tag: v2.15.2
+        nodeSelector:
+          taco-lma: enabled
+        replicas: 1
+        ruleNamespaceSelector:
+          matchLabels:
+            name: fed
+        ruleSelectorNilUsesHelmValues: false
+        serviceMonitorNamespaceSelector:
+          matchLabels:
+            name: fed
+        serviceMonitorSelectorNilUsesHelmValues: false
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 500Gi
+              storageClassName: netapp-nfs2
+      service:
+        nodePort: 30018
+        type: NodePort
+    prometheusOperator:
+      admissionWebhooks:
+        enabled: false
+      cleanupCustomResource: false
+      cleanupCustomResourceBeforeInstall: false
+      createCustomResource: false
+      enabled: false
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-node-exporter
+  name: prometheus-node-exporter
+spec:
+  chart:
+    name: prometheus-node-exporter
+    repository: http://192.168.105.161:8879/charts
+    version: 1.9.1
+  releaseName: prometheus-node-exporter
+  targetNamespace: lma
+  values:
+    extraArgs:
+    - --no-collector.hwmon
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/prometheus/node-exporter
+      tag: v0.18.1
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-operator
+  name: prometheus-operator
+spec:
+  chart:
+    name: prometheus-operator
+    repository: http://192.168.105.161:8879/charts
+    version: 8.12.3
+  releaseName: prometheus-operator
+  targetNamespace: lma
+  values:
+    alertmanager:
+      enabled: false
+    coreDns:
+      enabled: false
+    defaultRules:
+      create: false
+    grafana:
+      enabled: false
+    kubeApiServer:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeDns:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeStateMetrics:
+      enabled: false
+    kubelet:
+      enabled: false
+    nodeExporter:
+      enabled: false
+    prometheus:
+      enabled: false
+    prometheusOperator:
+      admissionWebhooks:
+        patch:
+          image:
+            repository: registry-rel.cicd.stg.taco:5000/kube-webhook-certgen
+            tag: v1.0.0
+      cleanupCustomResource: true
+      cleanupCustomResourceBeforeInstall: true
+      configmapReloadImage:
+        repository: registry-rel.cicd.stg.taco:5000/coreos/configmap-reload
+        tag: v0.0.1
+      createCustomResource: true
+      enabled: true
+      hyperkubeImage:
+        repository: registry-rel.cicd.stg.taco:5000/hyperkube
+        tag: v1.17.6
+      image:
+        repository: registry-rel.cicd.stg.taco:5000/coreos/prometheus-operator
+        tag: v0.37.0
+      nodeSelector:
+        taco-lma: enabled
+      prometheusConfigReloaderImage:
+        repository: registry-rel.cicd.stg.taco:5000/coreos/prometheus-config-reloader
+        tag: v0.37.0
+      tlsProxy:
+        image:
+          repository: registry-rel.cicd.stg.taco:5000/ghostunnel
+          tag: v1.5.2
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-process-exporter
+  name: prometheus-process-exporter
+spec:
+  chart:
+    name: prometheus-process-exporter
+    repository: http://192.168.105.161:8879/charts
+    skipDepUpdate: true
+    version: 0.1.0
+  releaseName: prometheus-process-exporter
+  targetNamespace: lma
+  values:
+    images:
+      pull_policy: Always
+      tags:
+        dep_check: registry-rel.cicd.stg.taco:5000/airshipit/kubernetes-entrypoint:v1.0.0
+        image_repo_sync: registry-rel.cicd.stg.taco:5000/library/docker:17.07.0
+        process_exporter: registry-rel.cicd.stg.taco:5000/process-exporter:0.2.11
+    labels:
+      process_exporter:
+        process_selector_key: process-exporter
+        process_selector_value: enabled
+    pod:
+      mandatory_access_control:
+        type: null
+      tolerations:
+        process_exporter:
+          enabled: true
+          tolerations:
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+          - key: node-role.kubernetes.io/node
+            operator: Exists
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: prometheus-pushgateway
+  name: prometheus-pushgateway
+spec:
+  chart:
+    name: prometheus-pushgateway
+    repository: http://192.168.105.161:8879/charts
+    version: 1.3.0
+  releaseName: prometheus-pushgateway
+  targetNamespace: lma
+  values:
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/pushgateway
+      tag: v1.2.0
+    nodeSelector:
+      taco-lma: enabled
+    service:
+      nodePort: 30010
+      type: NodePort
+  wait: true
+---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  labels:
+    name: taco-watcher
+  name: taco-watcher
+spec:
+  chart:
+    name: taco-watcher
+    repository: http://192.168.105.161:8879/charts
+    version: 0.1.0
+  releaseName: taco-watcher
+  targetNamespace: fed
+  values:
+    config:
+      grafana:
+        authkey: admin:password
+      initDB: true
+      kibana:
+        authkey: elastic:tacoword
+      password: password
+      username: taco
+    image:
+      repository: registry-rel.cicd.stg.taco:5000/taco-watcher
+      tag: 1.0.4
+    nodeSelector:
+      taco-lma: enabled
+    service:
+      nodePort: 32000
+      port: 32000
+      proxy_from: 32001
+      proxy_to: 32009
+      targetPort: 32000
+      type: NodePort
+    volume:
+      storageClassName: netapp-nfs2
+  wait: true
