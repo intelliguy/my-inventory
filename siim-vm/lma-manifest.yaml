@@ -8,7 +8,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.5.61:8879/charts
-    version: 1.0.2
+    version: 1.0.4
   releaseName: addons
   targetNamespace: lma
   values:
@@ -65,14 +65,12 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.5.61:8879/charts
-    version: 1.0.0
+    version: 1.0.1
   releaseName: elasticsearch-kibana
   targetNamespace: lma
   values:
     customResource:
       elasticsearch:
-        config:
-          node.master: true
         count: 3
         enabled: true
         image:
@@ -83,6 +81,51 @@ spec:
         limitMem: 2Gi
         nodeSelector:
           taco-lma: enabled
+        nodeSets:
+          client:
+            count: 1
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 0.5Gi
+              storageClassName: ceph
+          hotdata:
+            count: 3
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 100Gi
+              storageClassName: ceph
+          master:
+            count: 3
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 2Gi
+              storageClassName: ceph
+          warmdata:
+            count: 2
+            enabled: false
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 1
+            limitMem: 2Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 200Gi
+              storageClassName: ceph
         version: 7.5.1
         volumeClaimTemplates:
         - metadata:
@@ -111,6 +154,8 @@ spec:
         image:
           repository: suy-admin:5000/kibana/kibana
           tag: 7.5.1
+        limitCpu: 4
+        limitMem: 8Gi
         nodeSelector:
           taco-lma: enabled
         version: 7.5.1
@@ -128,7 +173,7 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.5.61:8879/charts
-    version: 1.0.0
+    version: 1.0.1
   releaseName: elasticsearch-operator
   targetNamespace: elastic-system
   values:
@@ -159,7 +204,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.5.61:8879/charts
-    version: 1.0.2
+    version: 1.0.4
   releaseName: fed-addons
   targetNamespace: fed
   values:
@@ -240,7 +285,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.5.61:8879/charts
     skipDepUpdate: true
-    version: 1.0.0
+    version: 1.0.1
   releaseName: fluentbit
   targetNamespace: lma
   values:
@@ -280,20 +325,20 @@ spec:
       targetLogs:
       - bufferChunkSize: 2M
         bufferMaxSize: 5M
-        indexPrefix: container
+        index: container
         memBufLimit: 20MB
         name: dockerlog
         parser: docker
         path: /var/log/containers/*.log
         tag: kube.*
         type: fluent
-      - indexPrefix: syslog
+      - index: syslog
         name: syslog
         parser: syslog-rfc5424
         path: /var/log/messages
         tag: kubenode.*
         type: syslog
-      - indexPrefix: etcd
+      - index: etcd
         name: etcd
         parser: docker
         path: /var/log/etcd.log
@@ -338,7 +383,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.5.61:8879/charts
     skipDepUpdate: true
-    version: 1.0.0
+    version: 1.0.1
   releaseName: fluentbit-operator
   targetNamespace: lma
   values:
@@ -549,77 +594,6 @@ spec:
       enabled: false
     prometheus:
       prometheusSpec:
-        additionalScrapeConfigs:
-        - job_name: kubernetes-service-endpoints
-          kubernetes_sd_configs:
-          - api_server: null
-            namespaces:
-              names: []
-            role: endpoints
-          metrics_path: /metrics
-          relabel_configs:
-          - action: drop
-            regex: (.*node-exporter|openstack-metrics|prom-metrics|.*kube-state-metrics)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-          - action: keep
-            regex: "true"
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_scrape
-          - action: replace
-            regex: (https?)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_scheme
-            target_label: __scheme__
-          - action: replace
-            regex: (.+)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_path
-            target_label: __metrics_path__
-          - action: replace
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-            separator: ;
-            source_labels:
-            - __address__
-            - __meta_kubernetes_service_annotation_prometheus_io_port
-            target_label: __address__
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-            replacement: $1
-            separator: ;
-          - action: replace
-            regex: (.*)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_namespace
-            target_label: kubernetes_namespace
-          - action: replace
-            regex: (.*)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-            target_label: kubernetes_name
-          - action: replace
-            regex: (.*)
-            replacement: ${1}
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-            target_label: job
-          scheme: http
-          scrape_interval: 1m
-          scrape_timeout: 10s
         externalLabels:
           taco_cluster: skb-ssu-prd02
         image:
@@ -963,6 +937,8 @@ spec:
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
+    conf:
+      processes: dockerd,kubelet,kube-proxy,ntpd
     images:
       pull_policy: Always
       tags:

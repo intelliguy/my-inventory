@@ -8,7 +8,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.2
+    version: 1.0.4
   releaseName: addons
   targetNamespace: lma
   values:
@@ -65,24 +65,64 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.0
+    version: 1.0.1
   releaseName: elasticsearch-kibana
   targetNamespace: lma
   values:
     customResource:
       elasticsearch:
-        config:
-          node.master: true
         count: 3
         enabled: true
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/elasticsearch/elasticsearch
-          tag: 7.5.1
         javaOpts: -Xms10g -Xmx10g
         limitCpu: 2
         limitMem: 20Gi
         nodeSelector:
           taco-lma: enabled
+        nodeSets:
+          client:
+            count: 1
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 0.5Gi
+              storageClassName: ceph
+          hotdata:
+            count: 3
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 100Gi
+              storageClassName: ceph
+          master:
+            count: 3
+            enabled: true
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 2
+            limitMem: 4Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 2Gi
+              storageClassName: ceph
+          warmdata:
+            count: 2
+            enabled: false
+            javaOpts: -Xms2g -Xmx2g
+            limitCpu: 1
+            limitMem: 2Gi
+            nodeSelector:
+              taco-lma: enabled
+            pvc:
+              size: 200Gi
+              storageClassName: ceph
         version: 7.5.1
         volumeClaimTemplates:
         - metadata:
@@ -93,7 +133,7 @@ spec:
             resources:
               requests:
                 storage: 200Gi
-            storageClassName: netapp-nfs2
+            storageClassName: rbd
       kibana:
         enabled: true
         http:
@@ -108,9 +148,8 @@ spec:
           tls:
             selfSignedCertificate:
               disabled: true
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/kibana/kibana
-          tag: 7.5.1
+        limitCpu: 4
+        limitMem: 8Gi
         nodeSelector:
           taco-lma: enabled
         version: 7.5.1
@@ -128,7 +167,7 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.0
+    version: 1.0.1
   releaseName: elasticsearch-operator
   targetNamespace: elastic-system
   values:
@@ -141,12 +180,6 @@ spec:
       createCustomResource: true
       createNamespace: false
       enabled: true
-      hyperkubeImage:
-        repository: registry-rel.cicd.stg.taco:5000/hyperkube
-        tag: v1.17.6
-      image:
-        repository: registry-rel.cicd.stg.taco:5000/eck/eck-operator
-        tag: 1.1.1
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -159,7 +192,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.2
+    version: 1.0.4
   releaseName: fed-addons
   targetNamespace: fed
   values:
@@ -170,9 +203,6 @@ spec:
           prometheusAddress: fed-master-prometheus:9090
     kibanaInit:
       enabled: true
-      image:
-        repository: registry-rel.cicd.stg.taco:5000/kibana-init
-        tag: v4
       url: http://taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
     metricbeat:
       addtionalModules: []
@@ -181,9 +211,6 @@ spec:
         password: tacoword
         username: elastic
       enabled: true
-      image:
-        repository: registry-rel.cicd.stg.taco:5000/metricbeat
-        tag: taco-1.0.0
       kibana:
         host: taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
       prometheus:
@@ -239,9 +266,6 @@ spec:
           menu:
             enabled: true
         enabled: true
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/curl
-          tag: latest
       port: 32000
       rbac:
         create: true
@@ -258,7 +282,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.0
+    version: 1.0.1
   releaseName: fluentbit
   targetNamespace: lma
   values:
@@ -298,20 +322,20 @@ spec:
       targetLogs:
       - bufferChunkSize: 2M
         bufferMaxSize: 5M
-        indexPrefix: container
+        index: container
         memBufLimit: 20MB
         name: dockerlog
         parser: docker
         path: /var/log/containers/*.log
         tag: kube.*
         type: fluent
-      - indexPrefix: syslog
+      - index: syslog
         name: syslog
         parser: syslog-rfc5424
         path: /var/log/messages
         tag: kubenode.*
         type: syslog
-      - indexPrefix: etcd
+      - index: etcd
         name: etcd
         parser: docker
         path: /var/log/etcd.log
@@ -325,22 +349,6 @@ spec:
       base_cluster_url: siim-dev
       nodeSelector:
         taco-lma: enabled
-    image:
-      exporter:
-        repository: registry-rel.cicd.stg.taco:5000/logalert-exporter
-        tag: v0.1.1
-      fluentbit:
-        repository: registry-rel.cicd.stg.taco:5000/fluent-bit-for-operator
-        tag: v1.4.6
-      hyperkube:
-        repository: registry-rel.cicd.stg.taco:5000/hyperkube
-        tag: v1.17.6
-      init:
-        repository: registry-rel.cicd.stg.taco:5000/library/docker
-        tag: 19.03
-      operator:
-        repository: registry-rel.cicd.stg.taco:5000/fluentbit-operator
-        tag: v0.1.1
     logExporter:
       enabled: false
   wait: true
@@ -356,7 +364,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.0
+    version: 1.0.1
   releaseName: fluentbit-operator
   targetNamespace: lma
   values:
@@ -370,22 +378,6 @@ spec:
         taco-lma: enabled
     global:
       base_cluster_url: siim-dev
-    image:
-      exporter:
-        repository: registry-rel.cicd.stg.taco:5000/logalert-exporter
-        tag: v0.1.1
-      fluentbit:
-        repository: registry-rel.cicd.stg.taco:5000/fluent-bit-for-operator
-        tag: v1.4.6
-      hyperkube:
-        repository: registry-rel.cicd.stg.taco:5000/hyperkube
-        tag: v1.17.6
-      init:
-        repository: registry-rel.cicd.stg.taco:5000/library/docker
-        tag: 19.03
-      operator:
-        repository: registry-rel.cicd.stg.taco:5000/fluentbit-operator
-        tag: v0.1.1
     logExporter:
       enabled: true
       nodeSelector:
@@ -407,25 +399,15 @@ spec:
   targetNamespace: fed
   values:
     adminPassword: password
-    downloadDashboardsImage:
-      repository: registry-rel.cicd.stg.taco:5000/curl
-      tag: 7.68.0
     grafana.ini:
       plugins:
         devopsprodigy-kubegraf-app: true
         grafana-piechart-panel: true
         vonage-status-panel: true
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/grafana
-      tag: 6.6.2
-    initChownData:
-      image:
-        repository: registry-rel.cicd.stg.taco:5000/library/busybox
-        tag: 1.31.1
     persistence:
       enabled: true
       size: 10G
-      storageClassName: netapp-nfs2
+      storageClassName: rbd
     plugins:
     - vonage-status-panel
     - grafana-piechart-panel
@@ -440,10 +422,6 @@ spec:
       datasources:
         enabled: true
         label: grafana_datasource
-      image: registry-rel.cicd.stg.taco:5000/k8s-sidecar:0.1.99
-    testFramework:
-      image: registry-rel.cicd.stg.taco:5000/bats
-      tag: v1.1.0
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -460,9 +438,6 @@ spec:
   releaseName: kube-state-metrics
   targetNamespace: lma
   values:
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/coreos/kube-state-metrics
-      tag: v1.9.5
     nodeSelector:
       taco-lma: enabled
   wait: true
@@ -493,10 +468,6 @@ spec:
         user: elastic
       logFormat: json
       logLevel: error
-    image:
-      PullPolicy: IfNotPresent
-      repository: registry-rel.cicd.stg.taco:5000/siim/kubernetes-event-exporter
-      tag: 0.1.0
 ---
 apiVersion: helm.fluxcd.io/v1
 kind: HelmRelease
@@ -567,82 +538,8 @@ spec:
       enabled: false
     prometheus:
       prometheusSpec:
-        additionalScrapeConfigs:
-        - job_name: kubernetes-service-endpoints
-          kubernetes_sd_configs:
-          - api_server: null
-            namespaces:
-              names: []
-            role: endpoints
-          metrics_path: /metrics
-          relabel_configs:
-          - action: drop
-            regex: (.*node-exporter|openstack-metrics|prom-metrics|.*kube-state-metrics)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-          - action: keep
-            regex: "true"
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_scrape
-          - action: replace
-            regex: (https?)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_scheme
-            target_label: __scheme__
-          - action: replace
-            regex: (.+)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_annotation_prometheus_io_path
-            target_label: __metrics_path__
-          - action: replace
-            regex: ([^:]+)(?::\d+)?;(\d+)
-            replacement: $1:$2
-            separator: ;
-            source_labels:
-            - __address__
-            - __meta_kubernetes_service_annotation_prometheus_io_port
-            target_label: __address__
-          - action: labelmap
-            regex: __meta_kubernetes_service_label_(.+)
-            replacement: $1
-            separator: ;
-          - action: replace
-            regex: (.*)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_namespace
-            target_label: kubernetes_namespace
-          - action: replace
-            regex: (.*)
-            replacement: $1
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-            target_label: kubernetes_name
-          - action: replace
-            regex: (.*)
-            replacement: ${1}
-            separator: ;
-            source_labels:
-            - __meta_kubernetes_service_name
-            target_label: job
-          scheme: http
-          scrape_interval: 1m
-          scrape_timeout: 10s
         externalLabels:
           taco_cluster: skb-suy-adm01
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/prometheus/prometheus
-          tag: v2.15.2
         nodeSelector:
           taco-lma: enabled
         replicas: 1
@@ -665,7 +562,7 @@ spec:
               resources:
                 requests:
                   storage: 200Gi
-              storageClassName: netapp-nfs2
+              storageClassName: rbd
       service:
         nodePort: 30008
         type: NodePort
@@ -692,9 +589,6 @@ spec:
   releaseName: prometheus-adapter
   targetNamespace: lma
   values:
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/k8s-prometheus-adapter-amd64
-      tag: v0.6.0
     nodeSelector:
       taco-lma: enabled
     prometheus:
@@ -720,9 +614,6 @@ spec:
   values:
     alertmanager:
       alertmanagerSpec:
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/prometheus/alertmanager
-          tag: v0.20.0
         nodeSelector:
           taco-lma: enabled
         retention: 120h
@@ -826,9 +717,6 @@ spec:
       prometheusSpec:
         externalLabels:
           taco_cluster: federation-master
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/prometheus/prometheus
-          tag: v2.15.2
         nodeSelector:
           taco-lma: enabled
         replicas: 1
@@ -848,7 +736,7 @@ spec:
               resources:
                 requests:
                   storage: 500Gi
-              storageClassName: netapp-nfs2
+              storageClassName: rbd
       service:
         nodePort: 30018
         type: NodePort
@@ -877,9 +765,6 @@ spec:
   values:
     extraArgs:
     - --no-collector.hwmon
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/prometheus/node-exporter
-      tag: v0.18.1
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -923,33 +808,12 @@ spec:
     prometheus:
       enabled: false
     prometheusOperator:
-      admissionWebhooks:
-        patch:
-          image:
-            repository: registry-rel.cicd.stg.taco:5000/kube-webhook-certgen
-            tag: v1.0.0
       cleanupCustomResource: true
       cleanupCustomResourceBeforeInstall: true
-      configmapReloadImage:
-        repository: registry-rel.cicd.stg.taco:5000/coreos/configmap-reload
-        tag: v0.0.1
       createCustomResource: true
       enabled: true
-      hyperkubeImage:
-        repository: registry-rel.cicd.stg.taco:5000/hyperkube
-        tag: v1.17.6
-      image:
-        repository: registry-rel.cicd.stg.taco:5000/coreos/prometheus-operator
-        tag: v0.37.0
       nodeSelector:
         taco-lma: enabled
-      prometheusConfigReloaderImage:
-        repository: registry-rel.cicd.stg.taco:5000/coreos/prometheus-config-reloader
-        tag: v0.37.0
-      tlsProxy:
-        image:
-          repository: registry-rel.cicd.stg.taco:5000/ghostunnel
-          tag: v1.5.2
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -967,12 +831,10 @@ spec:
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
+    conf:
+      processes: dockerd,kubelet,kube-proxy,ntpd
     images:
       pull_policy: Always
-      tags:
-        dep_check: registry-rel.cicd.stg.taco:5000/airshipit/kubernetes-entrypoint:v1.0.0
-        image_repo_sync: registry-rel.cicd.stg.taco:5000/library/docker:17.07.0
-        process_exporter: registry-rel.cicd.stg.taco:5000/process-exporter:0.2.11
     labels:
       process_exporter:
         process_selector_key: process-exporter
@@ -1004,9 +866,6 @@ spec:
   releaseName: prometheus-pushgateway
   targetNamespace: lma
   values:
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/pushgateway
-      tag: v1.2.0
     nodeSelector:
       taco-lma: enabled
     service:
@@ -1036,9 +895,6 @@ spec:
         authkey: elastic:tacoword
       password: password
       username: taco
-    image:
-      repository: registry-rel.cicd.stg.taco:5000/taco-watcher
-      tag: 1.0.4
     nodeSelector:
       taco-lma: enabled
     service:
@@ -1049,5 +905,5 @@ spec:
       targetPort: 32000
       type: NodePort
     volume:
-      storageClassName: netapp-nfs2
+      storageClassName: rbd
   wait: true
