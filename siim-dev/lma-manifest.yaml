@@ -8,7 +8,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.4
+    version: 1.0.5
   releaseName: addons
   targetNamespace: lma
   values:
@@ -192,7 +192,7 @@ spec:
   chart:
     name: taco-addons-lma
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.4
+    version: 1.0.5
   releaseName: fed-addons
   targetNamespace: fed
   values:
