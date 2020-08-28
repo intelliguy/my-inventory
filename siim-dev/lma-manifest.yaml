@@ -74,34 +74,29 @@ spec:
       elasticsearch:
         count: 3
         enabled: true
-        javaOpts: -Xms10g -Xmx10g
-        limitCpu: 2
-        limitMem: 20Gi
-        nodeSelector:
-          taco-lma: enabled
         nodeSets:
           client:
             count: 1
             enabled: true
-            javaOpts: -Xms2g -Xmx2g
+            javaOpts: -Xms10g -Xmx10g
             limitCpu: 2
-            limitMem: 4Gi
+            limitMem: 20Gi
             nodeSelector:
               taco-lma: enabled
             pvc:
               size: 0.5Gi
-              storageClassName: ceph
+              storageClassName: rbd
           hotdata:
             count: 3
             enabled: true
-            javaOpts: -Xms2g -Xmx2g
+            javaOpts: -Xms10g -Xmx10g
             limitCpu: 2
-            limitMem: 4Gi
+            limitMem: 20Gi
             nodeSelector:
               taco-lma: enabled
             pvc:
-              size: 100Gi
-              storageClassName: ceph
+              size: 200Gi
+              storageClassName: rbd
           master:
             count: 3
             enabled: true
@@ -112,7 +107,7 @@ spec:
               taco-lma: enabled
             pvc:
               size: 2Gi
-              storageClassName: ceph
+              storageClassName: rbd
           warmdata:
             count: 2
             enabled: false
@@ -125,16 +120,6 @@ spec:
               size: 200Gi
               storageClassName: ceph
         version: 7.5.1
-        volumeClaimTemplates:
-        - metadata:
-            name: elasticsearch-data
-          spec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 200Gi
-            storageClassName: rbd
       kibana:
         enabled: true
         http:
