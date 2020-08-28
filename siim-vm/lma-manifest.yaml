@@ -16,6 +16,7 @@ spec:
       enabled: false
     metricbeat:
       enabled: false
+      loglevel: error
     prometheusRules:
       aggregation:
         enabled: true
@@ -73,37 +74,29 @@ spec:
       elasticsearch:
         count: 3
         enabled: true
-        image:
-          repository: suy-admin:5000/elasticsearch/elasticsearch
-          tag: 7.5.1
-        javaOpts: -Xms1g -Xmx1g
-        limitCpu: 2
-        limitMem: 2Gi
-        nodeSelector:
-          taco-lma: enabled
         nodeSets:
           client:
             count: 1
             enabled: true
-            javaOpts: -Xms2g -Xmx2g
+            javaOpts: -Xms10g -Xmx10g
             limitCpu: 2
-            limitMem: 4Gi
+            limitMem: 20Gi
             nodeSelector:
               taco-lma: enabled
             pvc:
               size: 0.5Gi
-              storageClassName: ceph
+              storageClassName: rbd
           hotdata:
             count: 3
             enabled: true
-            javaOpts: -Xms2g -Xmx2g
+            javaOpts: -Xms10g -Xmx10g
             limitCpu: 2
-            limitMem: 4Gi
+            limitMem: 20Gi
             nodeSelector:
               taco-lma: enabled
             pvc:
-              size: 100Gi
-              storageClassName: ceph
+              size: 200Gi
+              storageClassName: rbd
           master:
             count: 3
             enabled: true
@@ -114,7 +107,7 @@ spec:
               taco-lma: enabled
             pvc:
               size: 2Gi
-              storageClassName: ceph
+              storageClassName: rbd
           warmdata:
             count: 2
             enabled: false
@@ -127,16 +120,6 @@ spec:
               size: 200Gi
               storageClassName: ceph
         version: 7.5.1
-        volumeClaimTemplates:
-        - metadata:
-            name: elasticsearch-data
-          spec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 200Gi
-            storageClassName: rbd
       kibana:
         enabled: true
         http:
@@ -151,9 +134,6 @@ spec:
           tls:
             selfSignedCertificate:
               disabled: true
-        image:
-          repository: suy-admin:5000/kibana/kibana
-          tag: 7.5.1
         limitCpu: 4
         limitMem: 8Gi
         nodeSelector:
@@ -186,12 +166,6 @@ spec:
       createCustomResource: true
       createNamespace: false
       enabled: true
-      hyperkubeImage:
-        repository: suy-admin:5000/hyperkube
-        tag: v1.17.6
-      image:
-        repository: suy-admin:5000/eck/eck-operator
-        tag: 1.1.1
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -215,7 +189,6 @@ spec:
           prometheusAddress: fed-master-prometheus:9090
     kibanaInit:
       enabled: true
-      image: suy-admin:5000/kibana-init:v4
       url: http://taco-kibana-dashboard-kb-http.lma.svc.siim-vm:5601
     metricbeat:
       addtionalModules: []
@@ -224,7 +197,6 @@ spec:
         password: tacoword
         username: elastic
       enabled: true
-      image: suy-admin:5000/metricbeat:taco-1.0.0
       kibana:
         host: taco-kibana-dashboard-kb-http.lma.svc.siim-vm:5601
       prometheus:
@@ -268,7 +240,6 @@ spec:
           menu:
             enabled: true
         enabled: true
-        image: suy-admin:5000/curl
       port: 32000
       rbac:
         create: true
@@ -352,22 +323,6 @@ spec:
       base_cluster_url: siim-vm
       nodeSelector:
         taco-lma: enabled
-    image:
-      exporter:
-        repository: suy-admin:5000/logalert-exporter
-        tag: v0.1.1
-      fluentbit:
-        repository: suy-admin:5000/fluent-bit-for-operator
-        tag: v1.4.6
-      hyperkube:
-        repository: suy-admin:5000/hyperkube
-        tag: v1.17.6
-      init:
-        repository: suy-admin:5000/library/docker
-        tag: 19.03
-      operator:
-        repository: suy-admin:5000/fluentbit-operator
-        tag: v0.1.1
     logExporter:
       enabled: false
   wait: true
@@ -395,24 +350,15 @@ spec:
       enabled: true
       nodeSelector:
         taco-lma: enabled
+      resources:
+        limits:
+          cpu: "2"
+          memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 20Mi
     global:
       base_cluster_url: siim-vm
-    image:
-      exporter:
-        repository: suy-admin:5000/logalert-exporter
-        tag: v0.1.1
-      fluentbit:
-        repository: suy-admin:5000/fluent-bit-for-operator
-        tag: v1.4.6
-      hyperkube:
-        repository: suy-admin:5000/hyperkube
-        tag: v1.17.6
-      init:
-        repository: suy-admin:5000/library/docker
-        tag: 19.03
-      operator:
-        repository: suy-admin:5000/fluentbit-operator
-        tag: v0.1.1
     logExporter:
       enabled: true
       nodeSelector:
@@ -434,21 +380,11 @@ spec:
   targetNamespace: fed
   values:
     adminPassword: password
-    downloadDashboardsImage:
-      repository: suy-admin:5000/curl
-      tag: 7.68.0
     grafana.ini:
       plugins:
         devopsprodigy-kubegraf-app: true
         grafana-piechart-panel: true
         vonage-status-panel: true
-    image:
-      repository: suy-admin:5000/grafana
-      tag: 6.6.2
-    initChownData:
-      image:
-        repository: suy-admin:5000/library/busybox
-        tag: 1.31.1
     persistence:
       enabled: true
       size: 10G
@@ -467,10 +403,6 @@ spec:
       datasources:
         enabled: true
         label: grafana_datasource
-      image: suy-admin:5000/k8s-sidecar:0.1.99
-    testFramework:
-      image: suy-admin:5000/bats
-      tag: v1.1.0
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -487,9 +419,6 @@ spec:
   releaseName: kube-state-metrics
   targetNamespace: lma
   values:
-    image:
-      repository: suy-admin:5000/coreos/kube-state-metrics
-      tag: v1.9.5
     nodeSelector:
       taco-lma: enabled
   wait: true
@@ -520,10 +449,6 @@ spec:
         user: elastic
       logFormat: json
       logLevel: error
-    image:
-      PullPolicy: IfNotPresent
-      repository: suy-admin:5000/siim/kubernetes-event-exporter
-      tag: 0.1.0
 ---
 apiVersion: helm.fluxcd.io/v1
 kind: HelmRelease
@@ -596,9 +521,6 @@ spec:
       prometheusSpec:
         externalLabels:
           taco_cluster: skb-ssu-prd02
-        image:
-          repository: suy-admin:5000/prometheus/prometheus
-          tag: v2.15.2
         nodeSelector:
           taco-lma: enabled
         replicas: 1
@@ -648,9 +570,6 @@ spec:
   releaseName: prometheus-adapter
   targetNamespace: lma
   values:
-    image:
-      repository: suy-admin:5000/k8s-prometheus-adapter-amd64
-      tag: v0.6.0
     nodeSelector:
       taco-lma: enabled
     prometheus:
@@ -688,9 +607,6 @@ spec:
   values:
     alertmanager:
       alertmanagerSpec:
-        image:
-          repository: suy-admin:5000/prometheus/alertmanager
-          tag: v0.20.0
         nodeSelector:
           taco-lma: enabled
         retention: 120h
@@ -787,7 +703,7 @@ spec:
     kubeScheduler:
       enabled: false
     kubeStateMetrics:
-      enabled: true
+      enabled: false
     kubelet:
       enabled: false
     nodeExporter:
@@ -796,9 +712,6 @@ spec:
       prometheusSpec:
         externalLabels:
           taco_cluster: federation-master
-        image:
-          repository: suy-admin:5000/prometheus/prometheus
-          tag: v2.15.2
         nodeSelector:
           taco-lma: enabled
         replicas: 1
@@ -847,9 +760,6 @@ spec:
   values:
     extraArgs:
     - --no-collector.hwmon
-    image:
-      repository: suy-admin:5000/prometheus/node-exporter
-      tag: v0.18.1
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -893,33 +803,12 @@ spec:
     prometheus:
       enabled: false
     prometheusOperator:
-      admissionWebhooks:
-        patch:
-          image:
-            repository: suy-admin:5000/kube-webhook-certgen
-            tag: v1.0.0
       cleanupCustomResource: true
       cleanupCustomResourceBeforeInstall: true
-      configmapReloadImage:
-        repository: suy-admin:5000/coreos/configmap-reload
-        tag: v0.0.1
       createCustomResource: true
       enabled: true
-      hyperkubeImage:
-        repository: suy-admin:5000/hyperkube
-        tag: v1.17.6
-      image:
-        repository: suy-admin:5000/coreos/prometheus-operator
-        tag: v0.37.0
       nodeSelector:
         taco-lma: enabled
-      prometheusConfigReloaderImage:
-        repository: suy-admin:5000/coreos/prometheus-config-reloader
-        tag: v0.37.0
-      tlsProxy:
-        image:
-          repository: suy-admin:5000/ghostunnel
-          tag: v1.5.2
   wait: true
 ---
 apiVersion: helm.fluxcd.io/v1
@@ -941,10 +830,6 @@ spec:
       processes: dockerd,kubelet,kube-proxy,ntpd
     images:
       pull_policy: Always
-      tags:
-        dep_check: suy-admin:5000/airshipit/kubernetes-entrypoint:v1.0.0
-        image_repo_sync: suy-admin:5000/library/docker:17.07.0
-        process_exporter: suy-admin:5000/process-exporter:0.2.11
     labels:
       process_exporter:
         process_selector_key: process-exporter
@@ -976,9 +861,6 @@ spec:
   releaseName: prometheus-pushgateway
   targetNamespace: lma
   values:
-    image:
-      repository: suy-admin:5000/pushgateway
-      tag: v1.2.0
     nodeSelector:
       taco-lma: enabled
     service:
@@ -1008,9 +890,6 @@ spec:
         authkey: elastic:tacoword
       password: password
       username: taco
-    image:
-      repository: suy-admin:5000/taco-watcher
-      tag: 1.0.4
     nodeSelector:
       taco-lma: enabled
     service:

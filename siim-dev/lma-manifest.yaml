@@ -16,6 +16,7 @@ spec:
       enabled: false
     metricbeat:
       enabled: false
+      loglevel: error
     prometheusRules:
       aggregation:
         enabled: true
@@ -376,6 +377,13 @@ spec:
       enabled: true
       nodeSelector:
         taco-lma: enabled
+      resources:
+        limits:
+          cpu: "2"
+          memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 20Mi
     global:
       base_cluster_url: siim-dev
     logExporter:
@@ -708,7 +716,7 @@ spec:
     kubeScheduler:
       enabled: false
     kubeStateMetrics:
-      enabled: true
+      enabled: false
     kubelet:
       enabled: false
     nodeExporter:

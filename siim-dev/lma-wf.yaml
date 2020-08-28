@@ -2,6 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: lma-
+  namespace: argo
 spec:
   entrypoint: deploy
   serviceAccountName: argo-deploy-sa
@@ -59,29 +60,3 @@ spec:
                 "addons"
               ]
         dependencies: [operator]
-      - name: federation
-        templateRef:
-          name: deploy-helmrelease
-          template: ChartGroup
-        arguments:
-          parameters: 
-          - name: chart_list
-            value: |
-              [
-                "taco-watcher",
-                "prometheus-fed-master",
-                "fed-addons"
-              ]
-        dependencies: [prometheus,logging]
-      - name: grafana
-        templateRef:
-          name: deploy-helmrelease
-          template: ChartGroup
-        arguments:
-          parameters: 
-          - name: chart_list
-            value: |
-              [
-                "grafana"
-              ]
-        dependencies: [federation]
