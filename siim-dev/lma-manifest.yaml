@@ -820,7 +820,7 @@ spec:
     name: prometheus-process-exporter
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 0.1.0
+    version: 1.0.0
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
