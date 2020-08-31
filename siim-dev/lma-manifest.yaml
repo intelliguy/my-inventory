@@ -318,7 +318,7 @@ spec:
       - index: syslog
         name: syslog
         parser: syslog-rfc5424
-        path: /var/log/messages
+        path: /var/log/syslog
         tag: kubenode.*
         type: syslog
       - index: etcd
