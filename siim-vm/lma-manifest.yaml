@@ -256,7 +256,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.5.61:8879/charts
     skipDepUpdate: true
-    version: 1.0.1
+    version: 1.0.4
   releaseName: fluentbit
   targetNamespace: lma
   values:
@@ -338,7 +338,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.5.61:8879/charts
     skipDepUpdate: true
-    version: 1.0.1
+    version: 1.0.4
   releaseName: fluentbit-operator
   targetNamespace: lma
   values:
@@ -822,7 +822,7 @@ spec:
     name: prometheus-process-exporter
     repository: http://192.168.5.61:8879/charts
     skipDepUpdate: true
-    version: 0.1.0
+    version: 1.0.0
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
@@ -835,6 +835,11 @@ spec:
         process_selector_key: process-exporter
         process_selector_value: enabled
     pod:
+      lifecycle:
+        upgrades:
+          daemonsets:
+            process_exporter:
+              max_unavailable: 30%
       mandatory_access_control:
         type: null
       tolerations:
@@ -866,39 +871,4 @@ spec:
     service:
       nodePort: 30010
       type: NodePort
-  wait: true
----
-apiVersion: helm.fluxcd.io/v1
-kind: HelmRelease
-metadata:
-  labels:
-    name: taco-watcher
-  name: taco-watcher
-spec:
-  chart:
-    name: taco-watcher
-    repository: http://192.168.5.61:8879/charts
-    version: 0.1.0
-  releaseName: taco-watcher
-  targetNamespace: fed
-  values:
-    config:
-      grafana:
-        authkey: admin:password
-      initDB: true
-      kibana:
-        authkey: elastic:tacoword
-      password: password
-      username: taco
-    nodeSelector:
-      taco-lma: enabled
-    service:
-      nodePort: 32000
-      port: 32000
-      proxy_from: 32001
-      proxy_to: 32009
-      targetPort: 32000
-      type: NodePort
-    volume:
-      storageClassName: rbd
   wait: true
