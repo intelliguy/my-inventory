@@ -266,7 +266,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.5
+    version: 1.0.6
   releaseName: fluentbit
   targetNamespace: lma
   values:
@@ -311,7 +311,7 @@ spec:
         multi_index:
         - index: platform
           key: $kubernetes['namespace_name']
-          value: kube-system|lma|fed|argo|openstack
+          value: kube-system|lma|fed
         name: dockerlog
         parser: docker
         path: /var/log/containers/*.log
@@ -321,14 +321,8 @@ spec:
         name: syslog
         parser: syslog-rfc5424
         path: /var/log/messages
-        tag: kubenode.*
+        tag: syslog.*
         type: syslog
-      - index: etcd
-        name: etcd
-        parser: docker
-        path: /var/log/etcd.log
-        tag: etcdnode.*
-        type: etcd
     fluentbitOperator:
       cleanupCustomResource: false
       createCustomResource: false
@@ -352,7 +346,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.4
+    version: 1.0.6
   releaseName: fluentbit-operator
   targetNamespace: lma
   values:
