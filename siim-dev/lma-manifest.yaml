@@ -51,6 +51,9 @@ spec:
             application: process_exporter
             component: metrics
             release_group: prometheus-process-exporter
+      trident:
+        enabled: true
+        interval: 10s
     tacoWatcher:
       rbac:
         create: false
@@ -66,7 +69,7 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.1
+    version: 1.0.2
   releaseName: elasticsearch-kibana
   targetNamespace: lma
   values:
@@ -153,7 +156,7 @@ spec:
   chart:
     name: elasticsearch-operator
     repository: http://192.168.105.161:8879/charts
-    version: 1.0.1
+    version: 1.0.2
   releaseName: elasticsearch-operator
   targetNamespace: elastic-system
   values:
@@ -196,7 +199,7 @@ spec:
         host: https://taco-elasticsearch-es-http.lma.svc.siim-dev:9200
         password: tacoword
         username: elastic
-      enabled: true
+      enabled: false
       kibana:
         host: taco-kibana-dashboard-kb-http.lma.svc.siim-dev:5601
       prometheus:
@@ -222,15 +225,10 @@ spec:
           prometheus: lma-prometheus
       - addresses:
         - 192.168.105.161
+        - 192.168.105.162
+        - 192.168.105.163
         interval: 10s
-        name: main-federate
-        port: 30008
-      - addresses:
-        - 192.168.5.161
-        - 192.168.5.162
-        - 192.168.5.163
-        interval: 10s
-        name: vm-federate
+        name: suy-federate
         port: 30008
       grafana:
         enabled: true
@@ -268,7 +266,7 @@ spec:
     name: fluentbit-operator
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.4
+    version: 1.0.5
   releaseName: fluentbit
   targetNamespace: lma
   values:
@@ -302,14 +300,18 @@ spec:
         http:
           enabled: true
         kafka:
-          broker: 10.12.250.203:9092, 10.12.250.204:9092, 10.12.250.205:9092
+          broker: suy-prd-elk-kfk-01:9092,suy-prd-elk-kfk-02:9092,suy-prd-elk-kfk-03:9092,suy-prd-elk-kfk-04:9092,suy-prd-elk-kfk-05:9092,suy-prd-elk-kfk-06:9092,suy-prd-elk-kfk-07:9092,suy-prd-elk-kfk-08:9092,suy-prd-elk-kfk-09:9092,suy-prd-elk-kfk-10:9092,suy-prd-elk-kfk-11:9092
           enabled: false
-          topic: taco
+          topic: taco-suy-adm-logs
       targetLogs:
       - bufferChunkSize: 2M
         bufferMaxSize: 5M
         index: container
         memBufLimit: 20MB
+        multi_index:
+        - index: platform
+          key: $kubernetes['namespace_name']
+          value: kube-system|lma|fed|argo|openstack
         name: dockerlog
         parser: docker
         path: /var/log/containers/*.log
@@ -318,7 +320,7 @@ spec:
       - index: syslog
         name: syslog
         parser: syslog-rfc5424
-        path: /var/log/syslog
+        path: /var/log/messages
         tag: kubenode.*
         type: syslog
       - index: etcd
@@ -431,6 +433,8 @@ spec:
   releaseName: kube-state-metrics
   targetNamespace: lma
   values:
+    collectors:
+      verticalpodautoscalers: false
     nodeSelector:
       taco-lma: enabled
   wait: true
@@ -614,7 +618,7 @@ spec:
         global:
           hipchat_api_url: null
           hipchat_auth_token: null
-          slack_api_url: https://hooks.slack.com/services/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
+          slack_api_url: https://hooks.slack.com/services/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
           smtp_auth_password: null
           smtp_auth_username: null
           smtp_from: null
@@ -622,7 +626,7 @@ spec:
         receivers:
         - name: default-alert
           slack_configs:
-          - channel: '#sample-critical'
+          - channel: '#alert'
             send_resolved: true
             text: |-
               {{ if or (and (eq (len .Alerts.Firing) 1) (eq (len .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved) 1)) }} {{ range .Alerts.Firing }}{{ .Annotations.message }}{{ end }}{{ range .Alerts.Resolved }}{{ .Annotations.message  }}{{ end }}
@@ -644,7 +648,7 @@ spec:
             username: Prometheus
         - name: slack-alert
           slack_configs:
-          - channel: '#sample-noti'
+          - channel: '#info-by-system'
             send_resolved: true
             text: |-
               {{ if or (and (eq (len .Alerts.Firing) 1) (eq (len .Alerts.Resolved) 0)) (and (eq (len .Alerts.Firing) 0) (eq (len .Alerts.Resolved) 1)) }} {{ range .Alerts.Firing }}{{ .Annotations.message }}{{ end }}{{ range .Alerts.Resolved }}{{ .Annotations.message  }}{{ end }}
@@ -713,6 +717,7 @@ spec:
         nodeSelector:
           taco-lma: enabled
         replicas: 1
+        retention: 300d
         ruleNamespaceSelector:
           matchLabels:
             name: fed
@@ -728,7 +733,7 @@ spec:
               - ReadWriteOnce
               resources:
                 requests:
-                  storage: 500Gi
+                  storage: 2000Gi
               storageClassName: rbd
       service:
         nodePort: 30018
@@ -820,12 +825,12 @@ spec:
     name: prometheus-process-exporter
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 1.0.0
+    version: 0.1.0
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
     conf:
-      processes: dockerd,kubelet,kube-proxy,ntpd
+      processes: dockerd,kubelet,kube-proxy,ntpd,node
     images:
       pull_policy: Always
     labels:

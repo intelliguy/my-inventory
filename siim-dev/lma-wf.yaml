@@ -86,4 +86,3 @@ spec:
                 "grafana"
               ]
         dependencies: [federation]
-        
