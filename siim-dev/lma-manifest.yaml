@@ -117,6 +117,7 @@ spec:
             pvc:
               size: 200Gi
               storageClassName: ceph
+              accessModes: "ReadWriteOnce"
         version: 7.5.1
       kibana:
         enabled: true
@@ -889,7 +890,7 @@ spec:
     name: prometheus-process-exporter
     repository: http://192.168.105.161:8879/charts
     skipDepUpdate: true
-    version: 0.1.0
+    version: 1.0.0
   releaseName: prometheus-process-exporter
   targetNamespace: lma
   values:
