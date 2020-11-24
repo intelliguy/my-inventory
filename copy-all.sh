@@ -1,4 +1,4 @@
-SRC_DIR=../decapod-yaml
+SRC_DIR=../hanu-site-yaml
 
 for type_origin in `cd $SRC_DIR;ls -d */ `
 do

@@ -69,7 +69,6 @@ spec:
           - name: chart_list
             value: |
               [
-                "taco-watcher",
                 "prometheus-fed-master",
                 "fed-addons"
               ]
