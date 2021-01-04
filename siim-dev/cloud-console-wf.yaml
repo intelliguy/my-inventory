@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: cc-
+  namespace: argo
+spec:
+  entrypoint: deploy
+  serviceAccountName: argo-deploy-sa
+  arguments:
+    parameters:
+    - name: app_name
+      value: "cloud-console"
+  templates:
+  - name: deploy
+    dag:
+      tasks:
+      - name: keycloak-postgresql
+        templateRef:
+          name: deploy-helmrelease
+          template: ChartGroup
+        arguments:
+          parameters: 
+          - name: chart_list
+            value: |
+              [
+                "keycloak"
+              ]
+        dependencies: []
+      - name: cloud-console
+        templateRef:
+          name: deploy-helmrelease
+          template: ChartGroup
+        arguments:
+          parameters: 
+          - name: chart_list
+            value: |
+              [
+                "cloud-console"
+              ]
+        dependencies: [keycloak-postgresql]
