@@ -1,0 +1,69 @@
+cluster_name: skb-suy-adm01.btvpaas.com
+
+# TACO parameter : do not install helm repo. it is installed by suy-service inventory
+helm_repo_enabled: false
+
+# TACO parameter : enable Container registry
+container_registry_enabled: true
+container_registries:
+ - { endpoint: skb-registry.taco, ip: 172.32.150.8, certfile: null, default: false }
+ - { endpoint: registry.skb-suy-adm01.btvpaas.com, ip: 172.32.150.8, certfile: null, default: false }
+ - { endpoint: registry.skb-suy-prd01.btvpaas.com, ip: 172.32.150.7, certfile: null, default: false }
+ - { endpoint: registry.skb-ssu-prd02.btvpaas.com, ip: 172.33.150.7, certfile: null, default: false }
+ - { endpoint: registry.skb-doj-dev01.btvpaas.com, ip: 175.113.150.30, certfile: null, default: false }
+
+# TACO parameter : a backend storage for kubernetes shared storage (ceph|nfs)
+taco_storage_backend: ""
+
+# TACO parameter : applications will be deployed on kubernetes. (openstack|lma|sona)
+taco_apps: ["istio", "lma", "admin-tools"]
+
+# kubespray parameter : for external loadbalancer
+apiserver_loadbalancer_domain_name: "{{ cluster_name }}"
+loadbalancer_apiserver:
+  address: 172.32.150.8
+  port: 6443
+
+# kubespray parameter : tune kubernetes for improving kubernetes reliability
+kubelet_status_update_frequency: 4s
+kube_controller_node_monitor_period: 2s
+kube_controller_node_monitor_grace_period: 20s
+kube_kubeadm_apiserver_extra_args: { event-ttl: 48h0m0s }
+kube_service_addresses: 10.14.128.0/18
+kube_pods_subnet: 10.14.192.0/18
+
+# kubespray parameter : enable calico IP-in-IP encapsulation of the inter-workload traffic. (Always | Never | CrossSubnet)
+ipip_mode: Never                                                               
+# kubespray parameter : url to do not use s3 for fast download
+cni_download_url : "https://github.com/openinfradev/kubespray-binaries/raw/master/cni-plugins-linux-amd64-v0.8.5.tgz"
+calicoctl_download_url : "https://github.com/openinfradev/kubespray-binaries/raw/master/calicoctl"
+
+# kubespray parameter : keep 3 replicas for coredns
+dns_min_replicas: 3
+
+calico_datastore: "kdd"
+
+# For Authentication
+kube_oidc_auth: true
+# For admin cluster
+keycloak_enabled: true
+keycloak_namespace: fed
+keycloak_domain: "btvpaas-suy-keycloak.skbroadband.com"
+kube_oidc_url: "https://{{keycloak_domain}}/auth/realms/nextpaas"
+kube_oidc_client_id: cloud-console
+
+# Optional settings for OIDC
+kube_oidc_username_claim: preferred_username
+kube_oidc_username_prefix: "-"
+kube_oidc_groups_claim: groups
+keycloak_password: tndbxkzh1!
+keycloak_db_password: tndbxkzh1!
+
+# If cluster isn't admin cluster, keycloak_certificate and
+# keycloak_certifate_key needs to be configured for connect to keycloak.
+# These file should be copied from admin cluster.
+# keycloak_certificate: /etc/keycloak/ssl/keycloak.crt
+# keycloak_certificate_key: /etc/keycloak/ssl/keyloak.key
+
+source_chart_list: ["taco-helm/*", "taco-addons/*", "helm/stable/prometheus-operator", "helm/stable/grafana", "helm/stable/kube-state-metrics", "helm/stable/prometheus-adapter", "helm/stable/prometheus-pushgateway", "helm/stable/prometheus-node-exporter"]
+

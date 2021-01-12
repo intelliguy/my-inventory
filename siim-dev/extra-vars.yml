@@ -1,0 +1,61 @@
+cluster_name: siim-dev
+
+# TACO parameter : do not install helm repo. it is installed by suy-service inventory
+helm_repo_enabled: false
+
+# TACO parameter : enable Container registry
+container_registry_enabled: false
+
+# TACO parameter : a backend storage for kubernetes shared storage (ceph|nfs)
+taco_storage_backend: rbd
+# external provisioners > rbd_provisioner
+# rbd_provisioner_enabled: >-
+#     {%- if taco_storage_backend == 'ceph' -%}true{%- else -%}false{%- endif -%}
+
+# -------------- Using prepaired CEPH
+# below will be used by default when rbd_provisioner_enabled=true
+rbd_provisioner_namespace: kube-system
+rbd_provisioner_replicas: 1
+rbd_provisioner_pool: kube
+rbd_provisioner_secret_name: ceph-secret-admin
+rbd_provisioner_user_secret_name: ceph-secret-user
+rbd_provisioner_user_secret_namespace: kube-system
+rbd_provisioner_fs_type: ext4
+rbd_provisioner_image_format: "2"
+rbd_provisioner_image_features: layering
+rbd_provisioner_storage_class: rbd
+rbd_provisioner_reclaim_policy: Delete
+rbd_provisioner_admin_id: "kube"
+rbd_provisioner_secret: "AQAPn8tUmPBwCxAAeIfvpDKA1fGvrBeXGdc6xQ=="
+rbd_provisioner_user_id: "kube"
+rbd_provisioner_user_secret: "AQAPn8tUmPBwCxAAeIfvpDKA1fGvrBeXGdc6xQ=="
+# --------------
+
+
+# TACO parameter : applications will be deployed on kubernetes. (openstack|lma|sona)
+taco_apps: []
+
+# kubespray parameter : for external loadbalancer
+apiserver_loadbalancer_domain_name: "{{ cluster_name }}"
+
+# kubespray parameter : tune kubernetes for improving kubernetes reliability
+kubelet_status_update_frequency: 4s
+kube_controller_node_monitor_period: 2s
+kube_controller_node_monitor_grace_period: 20s
+kube_kubeadm_apiserver_extra_args: { event-ttl: 48h0m0s }
+kube_service_addresses: 10.14.128.0/18
+kube_pods_subnet: 10.14.192.0/18
+
+# kubespray parameter : enable calico IP-in-IP encapsulation of the inter-workload traffic. (Always | Never | CrossSubnet)
+ipip_mode: Never                                                               
+# kubespray parameter : url to do not use s3 for fast download
+cni_download_url : "https://github.com/openinfradev/kubespray-binaries/raw/master/cni-plugins-linux-amd64-v0.8.5.tgz"
+calicoctl_download_url : "https://github.com/openinfradev/kubespray-binaries/raw/master/calicoctl"
+
+
+calico_datastore: "kdd"
+
+# For Authentication
+kube_oidc_auth: true
+# For admin cluster
+keycloak_enabled: false
