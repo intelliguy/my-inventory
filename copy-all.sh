@@ -1,8 +1,8 @@
-SRC_DIR=../hanu-site-yaml
+SRC_DIR=../decapod-site-yaml
 
 for type_origin in `cd $SRC_DIR;ls -d */ `
 do
-  echo $i;
+  echo $type_origin;
   type=$(echo $type_origin | awk -F / '{print $1}') 
     for site_origin in `ls -d */ `
     do
